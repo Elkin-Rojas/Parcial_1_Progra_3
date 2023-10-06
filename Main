@@ -1,0 +1,162 @@
+import random
+import numpy as np
+import pandas as pd
+from sodapy import Socrata
+
+
+client = Socrata("www.datos.gov.co",
+                  "dQdHheDCRaxK5I32yw9oAtRmb",
+                  username="elkin.rojas@utp.edu.co",
+                  password="Rojas_Elkin")
+
+
+
+
+# Obtener los datos de la API
+results = client.get("gt2j-8ykr", limit=1000)
+
+# Convertir los resultados en un DataFrame de pandas
+results_df = pd.DataFrame.from_records(results)
+
+departamento_data = results_df[results_df['departamento_nom'] == 'RISARALDA']
+
+
+# Definir una función para generar datos de muestra
+def generate_sample_data(df, n):
+
+    # Verificar que n no sea mayor que el número de filas en el DataFrame
+    if n > len(df):
+      print(f'\033[33m-------------------------------------------------------------------------------------\n!!!!!!!!!!!!!!!ADVERTENCIA!!!!!!!!!!!!!!!!!!!!!!!!!!\nEl DataFrame solo tiene {len(df)} filas. No se pueden seleccionar {n} filas.\nSe mostrarán los {len(df)} datos disponibles.\n-------------------------------------------------------------------------------------\033[0m')
+      return generate_sample_data(df, len(df))
+
+
+    # Obtener un número aleatorio de filas del DataFrame original
+    random_indices = random.sample(range(len(df)), n)
+
+    # Seleccionar las filas correspondientes a los índices aleatorios
+    sample_data = df.iloc[random_indices]
+
+    # Restablecer los índices del DataFrame resultante
+    sample_data.reset_index(drop=True, inplace=True)
+
+    return sample_data
+
+#Generar datos de muestra en general
+sample_data = generate_sample_data(results_df, 60)
+# Generar datos de muestra de RISARALDA
+sample_data = generate_sample_data(departamento_data, 60)
+
+# Cambiar los nombres de las columnas
+sample_data = sample_data.rename(columns={
+    'fecha_reporte_web': 'Fecha reporte web',
+    'id_de_caso': 'ID de caso',
+    'fecha_de_notificacion': 'Fecha de notificación',
+    'departamento': 'Código DIVIPOLA departamento',
+    'departamento_nom': 'Nombre departamento',
+    'ciudad_municipio': 'Código DIVIPOLA municipio',
+    'ciudad_municipio_nom': 'Nombre municipio',
+    'edad': 'Edad',
+    'unidad_medida': 'Unidad de medida de edad',
+    'sexo': 'Sexo',
+    'fuente_tipo_contagio': 'Tipo de contagio',
+    'ubicacion': 'Ubicación del caso',
+    'estado': 'Estado',
+    'pais_viajo_1_cod': 'Código ISO del país',
+    'pais_viajo_1_nom': 'Nombre del país',
+    'recuperado': 'Recuperado',
+    'fecha_inicio_sintomas': 'Fecha de inicio de síntomas',
+    'fecha_muerte': 'Fecha de muerte',
+    'fecha_diagnostico': 'Fecha de diagnóstico',
+    'fecha_recuperado': 'Fecha de recuperación',
+    'tipo_recuperacion': 'Tipo de recuperación',
+    'per_etn_': 'Pertenencia étnica',
+    'nom_grupo_': 'Nombre del grupo étnico'
+})
+
+# Imprimir el DataFrame de datos de muestra
+print(sample_data)
+
+print('-------------------------------------wrangling/munging process--------------------------------------------------')
+print("Number of rows::", sample_data.shape[0])
+print("Number of columns::", sample_data.shape[1] )
+print("Column Names::", sample_data.columns.values.tolist())
+print("Column Data Types::\n", sample_data.dtypes)
+print("--------\nColumns with Missing Values::", sample_data.columns[ sample_data.isnull().any()].tolist())
+print("Number of rows with Missing Values::", len(pd.isnull( sample_data).any().to_numpy().nonzero()[0].tolist()))
+print("Sample Indices with missing data::", pd.isnull( sample_data).any().to_numpy().nonzero()[0].tolist()[0:5])
+
+print('-------------------------------------describe() function./ statics--------------------------------------------------')
+print("Genearl Statistics::\n", sample_data.info())
+print("Sumary Statistics::\n", sample_data.describe())
+
+print('-----------------------------------------Filtering data---------------------------------------------------')
+
+print("rename columns")
+""" write a small function and utilize the rename() utility of pandas to
+complete this step. """
+def cleanup_column_names( sample_data,rename_dict={},do_inplace=True):
+    """ This function cleans up the column names of a pandas dataframe """
+    if not rename_dict:
+        return  sample_data.rename(columns={col: col.lower().replace(' ','_')
+    for col in  sample_data.columns.values.tolist()},
+        inplace=do_inplace)
+    else:
+        return  sample_data.rename(columns=rename_dict,inplace=do_inplace)
+
+print( sample_data.head(20))
+
+print("------------------------------------------Select especific data-------------------------------------------------")
+
+print("Using Column Index::" )
+print(sample_data.iloc[:, 3])  # Acceso a la cuarta columna (índice 3)
+
+print("Using Column Name::" )
+print(sample_data['Edad'])  # Acceso a la columna 'Edad'
+
+print("Using Column Data Type::" )
+print(sample_data.select_dtypes(include=['object']).iloc[:, 0])  # Acceso a la primera columna de tipo object
+
+
+print("-------------------------------------------Select especific atributes------------------------------------------------")
+
+print("Select Specific row indices::")
+print(sample_data.iloc[[5, 6, 7]])  # Añade corchetes adicionales alrededor de los índices
+
+print("\nSubsetting based on logical condition(s)::" )
+if 'Edad' in sample_data.columns and sample_data['Edad'].dtype == 'int64':
+    filtered_data = sample_data[sample_data['Edad'] > 25]
+    print(filtered_data.head())
+else:
+    print("La columna 'Edad' no existe o no es numérica.")
+
+
+print("\nSubsetting based on offset from top (bottom)::" )
+last_10_rows = sample_data.tail(10)
+print(last_10_rows)
+
+
+print("-------------------------------------------------Imputing Missing Values----------------------------------------------" )
+
+# A partir de aquí comienza la imputación de valores faltantes
+
+# Rellenar valores faltantes en la columna 'Edad' con la media de edades
+if 'Edad' in sample_data.columns and sample_data['Edad'].dtype == 'int64':
+    sample_data['Edad'].fillna(value=np.round(sample_data['Edad'].mean(), decimals=2), inplace=True)
+else:
+    print("La columna 'Edad' no existe o no es numérica.")
+
+# Rellenar valores faltantes en la columna 'Nombre municipio' con el método de relleno hacia adelante (forward fill)
+sample_data['Nombre municipio'].ffill(inplace=True)
+#Rellenar valores faltantes en la columna 'Sexo' con el método de relleno hacia atrás (backward fill)
+sample_data['Sexo'].bfill(inplace=True)
+#Rellenar valores faltantes en la columna "Codigo ISO del pais" con  unos y con el método de relleno hacia adelante (forward fill)
+sample_data['Código ISO del país'].fillna(value=1, inplace=True)
+
+# Imputación de la columna 'Nombre del país' con una cadena específica
+sample_data['Nombre del país'].fillna(value='FULL', inplace=True)
+
+
+
+
+# Imprimir el DataFrame después de la imputación
+print(sample_data)
