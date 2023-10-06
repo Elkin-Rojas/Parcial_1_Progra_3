@@ -1,1 +1,42 @@
-Api
+import random
+import numpy as np
+import pandas as pd
+from sodapy import Socrata
+
+
+client = Socrata("www.datos.gov.co",
+                  "dQdHheDCRaxK5I32yw9oAtRmb",
+                  username="elkin.rojas@utp.edu.co",
+                  password="Rojas_Elkin")
+
+
+
+
+# Obtener los datos de la API
+results = client.get("gt2j-8ykr", limit=1000)
+
+# Convertir los resultados en un DataFrame de pandas
+results_df = pd.DataFrame.from_records(results)
+
+departamento_data = results_df[results_df['departamento_nom'] == 'RISARALDA']
+
+
+# Definir una función para generar datos de muestra
+def generate_sample_data(df, n):
+
+    # Verificar que n no sea mayor que el número de filas en el DataFrame
+    if n > len(df):
+      print(f'\033[33m-------------------------------------------------------------------------------------\n!!!!!!!!!!!!!!!ADVERTENCIA!!!!!!!!!!!!!!!!!!!!!!!!!!\nEl DataFrame solo tiene {len(df)} filas. No se pueden seleccionar {n} filas.\nSe mostrarán los {len(df)} datos disponibles.\n-------------------------------------------------------------------------------------\033[0m')
+      return generate_sample_data(df, len(df))
+
+
+    # Obtener un número aleatorio de filas del DataFrame original
+    random_indices = random.sample(range(len(df)), n)
+
+    # Seleccionar las filas correspondientes a los índices aleatorios
+    sample_data = df.iloc[random_indices]
+
+    # Restablecer los índices del DataFrame resultante
+    sample_data.reset_index(drop=True, inplace=True)
+
+    return sample_data
